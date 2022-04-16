@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Audio Player</string>
+    <string name="app_username">Username</string>
+    <string name="app_password">Password</string>
+
+    <string name="app_login">LOG IN</string>
+    <string name="app_signup">SIGN UP</string>
+    <string name="app_send">SEND</string>
+
+    <string name="app_iconDescription">Login Icon Description</string>
+
+    <string name="app_email">Email</string>
+    <string name="app_firstname">First Name</string>
+    <string name="app_lastname">Last Name</string>
+    <string name="app_phone">Phone</string>
+
+
+</resources>
