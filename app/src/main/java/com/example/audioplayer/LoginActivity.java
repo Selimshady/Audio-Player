@@ -54,6 +54,7 @@ public class LoginActivity extends AppCompatActivity {
             if (control(userName.getText().toString(), password.getText().toString()))
             {
                 Toast.makeText(LoginActivity.this, "Correct", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(this,MainListActivity.class));
             }
             else
             {
