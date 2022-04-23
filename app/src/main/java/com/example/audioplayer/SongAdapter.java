@@ -15,6 +15,11 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.MediaItem;
+import com.google.android.exoplayer2.MediaMetadata;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -22,11 +27,14 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     Context context;
     List<Song> songs;
 
+    ExoPlayer player;
 
 
-    public SongAdapter(Context context, List<Song> songs) {
+
+    public SongAdapter(Context context, List<Song> songs, ExoPlayer player) {
         this.context = context;
         this.songs = songs;
+        this.player = player;
     }
 
 
@@ -44,8 +52,8 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         SongViewHolder viewHolder  = (SongViewHolder) holder;
 
         viewHolder.titleHolder.setText(song.getTitle());
-        viewHolder.durationHolder.setText(String.valueOf(song.getDuration()));
-        viewHolder.sizeHolder.setText(String.valueOf(song.getSize()));
+        viewHolder.durationHolder.setText(getDuration(song.getDuration()));
+        viewHolder.artistHolder.setText(song.getArtist());
 
         Uri songCover = song.getCoverUri();
 
@@ -59,14 +67,47 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        viewHolder.itemView.setOnClickListener(view -> Toast.makeText(context, song.getTitle(), Toast.LENGTH_SHORT).show());
+        viewHolder.itemView.setOnClickListener(view ->{
+            if(!player.isPlaying())
+            {
+                player.setMediaItems(getMediaItems(),position,0);
+            }
+            else
+            {
+                player.pause();
+                player.seekTo(position,0);
+            }
+            player.prepare();
+            player.play();
+            Toast.makeText(context, song.getTitle(), Toast.LENGTH_SHORT).show();
+        });
 
+    }
+
+    private List<MediaItem> getMediaItems() {
+        List<MediaItem> mediaItems = new ArrayList<>();
+        for (Song song: songs)
+        {
+            MediaItem mediaItem = new MediaItem.Builder()
+                    .setUri(song.getUri())
+                    .setMediaMetadata(getMetaData(song))
+                    .build();
+            mediaItems.add(mediaItem);
+        }
+        return mediaItems;
+    }
+
+    private MediaMetadata getMetaData(Song song) {
+        return new MediaMetadata.Builder()
+                .setTitle(song.getTitle())
+                .setArtworkUri(song.getCoverUri())
+                .build();
     }
 
     public static class SongViewHolder extends RecyclerView.ViewHolder {
 
         ImageView symbolHolder;
-        TextView titleHolder,durationHolder,sizeHolder;
+        TextView titleHolder,durationHolder, artistHolder;
 
         public SongViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -74,7 +115,7 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             symbolHolder = (ImageView) itemView.findViewById(R.id.symbol);
             titleHolder = (TextView) itemView.findViewById(R.id.title_view);
             durationHolder = (TextView) itemView.findViewById(R.id.duration);
-            sizeHolder = (TextView) itemView.findViewById(R.id.size);
+            artistHolder = (TextView) itemView.findViewById(R.id.artist);
         }
     }
 
@@ -84,15 +125,30 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
 
-    @SuppressLint("NotifyDataSetChanged")
-    public void filterSongs(List<Song> filteredList)
-    {
-        songs = filteredList;
-        notifyDataSetChanged();
-    }
-
     @Override
     public int getItemViewType(int position) {
         return super.getItemViewType(position);
+    }
+
+
+
+    private String getDuration(int totalDuration)
+    {
+        String totalDurationText;
+
+        int hrs = totalDuration/(1000*60*60);
+        int min = (totalDuration%(1000*60*60))/(1000*60);
+        int secs = (((totalDuration%(1000*60*60))%(1000*60*60))%(1000*600))/10000;
+
+        if(hrs<1)
+        {
+            totalDurationText = String.format("%2d:%2d",min,secs);
+        }
+        else
+        {
+            totalDurationText = String.format("%1d:%2d:%2d", hrs,min,secs);
+        }
+
+        return totalDurationText;
     }
 }

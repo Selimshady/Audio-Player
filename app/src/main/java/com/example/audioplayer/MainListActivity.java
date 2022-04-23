@@ -1,7 +1,6 @@
 package com.example.audioplayer;
 
 import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -9,7 +8,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.app.AlertDialog;
+import android.annotation.SuppressLint;
 import android.content.ContentUris;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -19,9 +18,13 @@ import android.os.Bundle;
 
 import android.provider.MediaStore;
 
-import android.util.Log;
 import android.widget.Toast;
+
+import com.google.android.exoplayer2.ExoPlayer;
+
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -33,6 +36,8 @@ public class MainListActivity extends AppCompatActivity {
     ActivityResultLauncher<String> storagePermissionLauncher;
     final String permission = Manifest.permission.READ_EXTERNAL_STORAGE;
 
+    ExoPlayer player;
+
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -41,43 +46,31 @@ public class MainListActivity extends AppCompatActivity {
 
         recyclerView = (RecyclerView) findViewById(R.id.songList);
 
-        if(songs.size()==0){
-            if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)== PackageManager.PERMISSION_GRANTED){
-                fetchSongs();
-            }else{
-                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE},11);
-            }
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+        {
+            fetchSongs();
+        }
+        else
+        {
+            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 11);
         }
 
-        songAdapter = new SongAdapter(this,songs);
-        recyclerView.setAdapter(songAdapter);
+        Collections.sort(songs, new Comparator<Song>(){
+            public int compare(Song o1, Song o2)
+            {
+                return o1.getTitle().compareTo(o2.getTitle());
+            }
+        });
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
 
-    }
+        songAdapter = new SongAdapter(this,songs,player);
+        recyclerView.setAdapter(songAdapter);
 
-    private void userResponse() {
-        if(ContextCompat.checkSelfPermission(this,permission) == PackageManager.PERMISSION_GRANTED)
-        {
-            fetchSongs();
-        }
-        else if(shouldShowRequestPermissionRationale(permission))
-        {
-            new AlertDialog.Builder(this)
-                    .setTitle("Requesting Permission")
-                    .setMessage("Allow us to fetch songs  on your device")
-                    .setPositiveButton("allow", (dialogInterface, i) -> storagePermissionLauncher.launch(permission))
-                    .setNegativeButton("cancel", (dialogInterface, i) -> {
-                        Toast.makeText(getApplicationContext(), "You denied us to show songs",Toast.LENGTH_SHORT).show();
-                        dialogInterface.dismiss();
-                    })
-                    .show();
-        }
-        else
-        {
-            Toast.makeText(this, "You canceled to show songs", Toast.LENGTH_SHORT).show();
-        }
+        player = new ExoPlayer.Builder(this).build();
+
+
     }
 
     private void fetchSongs() {
@@ -94,9 +87,9 @@ public class MainListActivity extends AppCompatActivity {
 
         String[] projection = new String[]{
                 MediaStore.Audio.Media._ID,
-                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.TITLE,
                 MediaStore.Audio.Media.DURATION,
-                MediaStore.Audio.Media.SIZE,
+                MediaStore.Audio.Media.ARTIST,
                 MediaStore.Audio.Media.ALBUM_ID,
         };
 
@@ -105,9 +98,9 @@ public class MainListActivity extends AppCompatActivity {
             Cursor cursor = getContentResolver().query(mediaStoreUri, projection,MediaStore.Audio.Media.IS_MUSIC + " != 0", null,null);
 
             int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
-            int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME);
+            int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
             int durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
-            int sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE);
+            int artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
             int albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID);
 
             while(cursor.moveToNext()) {
@@ -115,31 +108,24 @@ public class MainListActivity extends AppCompatActivity {
                 long id = cursor.getLong(idColumn);
                 String name = cursor.getString(nameColumn);
                 int duration = cursor.getInt(durationColumn);
-                int size = cursor.getInt(sizeColumn);
+                String artist = cursor.getString(artistColumn);
                 long albumId = cursor.getLong(albumIdColumn);
 
                 Uri uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,id);
 
                 Uri albumCoverUri = ContentUris.withAppendedId(Uri.parse("content://media/external/audio/albumart"),albumId);
 
-                name = name.substring(0,name.lastIndexOf("."));
-
-                Song song = new Song(name,uri,albumCoverUri,size,duration);
+                Song song = new Song(name,uri,albumCoverUri,artist,duration);
 
                 songs.add(song);
-
             }
-
             cursor.close();
-
-
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
     }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -151,6 +137,4 @@ public class MainListActivity extends AppCompatActivity {
             Toast.makeText(this, "error", Toast.LENGTH_SHORT).show();
         }
     }
-
-
 }

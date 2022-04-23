@@ -58,7 +58,7 @@ public class SignUpActivity extends AppCompatActivity {
                 }
                 else
                 {
-                    Toast.makeText(SignUpActivity.this, "Username is already used!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SignUpActivity.this, "This username is already used!", Toast.LENGTH_SHORT).show();
                 }
             }
             else
@@ -120,7 +120,6 @@ public class SignUpActivity extends AppCompatActivity {
                 newUsers.add(user);
                 writeNewJson(newUsers);
             }
-
         }
         catch(IOException e)
         {

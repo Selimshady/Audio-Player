@@ -6,16 +6,25 @@ public class Song {
     String title;
     Uri uri;
     Uri coverUri;
-    int size;
     int duration;
+    String artist;
 
 
-    public Song(String title, Uri uri, Uri coverUri, int size, int duration) {
+    public Song(String title, Uri uri, Uri coverUri, String artist, int duration) {
         this.title = title;
         this.uri = uri;
+        this.artist = artist;
         this.coverUri = coverUri;
-        this.size = size;
         this.duration = duration;
+    }
+
+
+    public String getArtist() {
+        return artist;
+    }
+
+    public void setArtist(String artist) {
+        this.artist = artist;
     }
 
 
@@ -41,14 +50,6 @@ public class Song {
 
     public void setCoverUri(Uri coverUri) {
         this.coverUri = coverUri;
-    }
-
-    public int getSize() {
-        return size;
-    }
-
-    public void setSize(int size) {
-        this.size = size;
     }
 
     public int getDuration() {
