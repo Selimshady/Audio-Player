@@ -12,6 +12,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
 
@@ -28,13 +29,15 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     List<Song> songs;
 
     ExoPlayer player;
+    ConstraintLayout playerView;
 
 
 
-    public SongAdapter(Context context, List<Song> songs, ExoPlayer player) {
+    public SongAdapter(Context context, List<Song> songs, ExoPlayer player, ConstraintLayout playerView) {
         this.context = context;
         this.songs = songs;
         this.player = player;
+        this.playerView = playerView;
     }
 
 
@@ -80,6 +83,9 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             player.prepare();
             player.play();
             Toast.makeText(context, song.getTitle(), Toast.LENGTH_SHORT).show();
+
+
+            playerView.setVisibility(View.VISIBLE);
         });
 
     }

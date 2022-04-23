@@ -27,7 +27,6 @@ public class Song {
         this.artist = artist;
     }
 
-
     public String getTitle() {
         return title;
     }
