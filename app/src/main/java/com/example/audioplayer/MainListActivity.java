@@ -1,11 +1,11 @@
 package com.example.audioplayer;
 
 
-import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -14,8 +14,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.ComponentName;
 import android.content.ContentUris;
-import android.content.DialogInterface;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -23,6 +26,7 @@ import android.os.Build;
 import android.os.Bundle;
 
 import android.os.Handler;
+import android.os.IBinder;
 import android.provider.MediaStore;
 
 
@@ -47,7 +51,12 @@ public class MainListActivity extends AppCompatActivity {
 
     RecyclerView recyclerView;
     SongAdapter songAdapter;
-    List<Song> songs;
+    List<Song> allSongs = new ArrayList<>();
+
+    ActivityResultLauncher<String> storagePermissionLauncher;
+    ActivityResultLauncher<String> recordAudioPermissionLauncher;
+    final String permission = Manifest.permission.READ_EXTERNAL_STORAGE;
+    final String recordAudioPermission = Manifest.permission.RECORD_AUDIO;
 
     ExoPlayer player;
     ConstraintLayout playerView;
@@ -63,22 +72,34 @@ public class MainListActivity extends AppCompatActivity {
     TextView progressView, durationView;
     BarVisualizer audioVisualizer;
 
+    boolean isBound = false;
+
     int defaultStatusColor;
     int repeatMode = 1; // repeat all  = 1 , repeat one = 2 , shuffle = 3
-
-    private final int STORAGE_PERMISSON_CODE = 1;
-    private final int AUDIO_PERMISSON_CODE = 2;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_list);
 
-        songs = new ArrayList<>();
-        recyclerView = (RecyclerView) findViewById(R.id.songList);
-        player = new ExoPlayer.Builder(this).build();
-
         defaultStatusColor = getWindow().getStatusBarColor();
         getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor,199));
+
+        recyclerView = (RecyclerView) findViewById(R.id.songList);
+
+        storagePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted->{
+            if(granted)
+                fetchSongs();
+            else
+                userResponse();
+        });
+
+        recordAudioPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted->{
+            if(granted && player.isPlaying()) {
+                activateAudioVisualizer();
+            }
+            else
+                userResponsesOnRecordAudioPerm();
+        });
 
         playerView = findViewById(R.id.player_view);
         playerCloseBtn = findViewById(R.id.playerCloseBtn);
@@ -106,113 +127,62 @@ public class MainListActivity extends AppCompatActivity {
         durationView = findViewById(R.id.durationView);
         audioVisualizer = findViewById(R.id.visualizer);
 
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
+        doBindService();
+    }
 
-        songAdapter = new SongAdapter(this,songs,player,playerView);
-        recyclerView.setAdapter(songAdapter);
+    private void userResponsesOnRecordAudioPerm() {
+          if(shouldShowRequestPermissionRationale(recordAudioPermission)) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Permission Needed")
+                        .setMessage("Audio Record permission is needed to show you audio visualizer.")
+                        .setPositiveButton("ok", (dialogInterface, i) -> recordAudioPermissionLauncher.launch(recordAudioPermission))
+                        .setNegativeButton("cancel", (dialogInterface, i) -> dialogInterface.dismiss())
+                        .show();
+          }
+    }
 
-        playerControls();
-
-
-        if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+    private void userResponse() {
+        if(ContextCompat.checkSelfPermission(this,permission) == PackageManager.PERMISSION_GRANTED)
         {
             fetchSongs();
         }
-        else
-        {
-            requestStoragePermission();
-        }
-
-        if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-        {
-            activateAudioVisualizer();
-        }
-        else
-        {
-            requestAudioPermission();
-        }
-    }
-
-
-    private void requestStoragePermission()
-    {
-        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.READ_EXTERNAL_STORAGE))
-        {
+        else if(shouldShowRequestPermissionRationale(permission)) {
             new AlertDialog.Builder(this)
                     .setTitle("Permission Needed")
                     .setMessage("Store permission is needed to reach your songs and show them in this app")
-                    .setPositiveButton("ok", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            ActivityCompat.requestPermissions(MainListActivity.this,new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSON_CODE);
-                        }
-                    })
-                    .setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            dialogInterface.dismiss();
-                        }
-                    })
-                    .create().show();
-        }
-        else
-        {
-            ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSON_CODE);
+                    .setPositiveButton("ok", (dialogInterface, i) -> storagePermissionLauncher.launch(permission))
+                    .setNegativeButton("cancel", (dialogInterface, i) -> dialogInterface.dismiss())
+                    .show();
         }
     }
 
-    private void requestAudioPermission()
-    {
-        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.RECORD_AUDIO))
-        {
-            new AlertDialog.Builder(this)
-                    .setTitle("Permission Needed")
-                    .setMessage("Audio Record permission is needed to show audio visualizer")
-                    .setPositiveButton("ok", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            ActivityCompat.requestPermissions(MainListActivity.this,new String[] {Manifest.permission.RECORD_AUDIO}, AUDIO_PERMISSON_CODE);
-                        }
-                    })
-                    .setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            dialogInterface.dismiss();
-                        }
-                    })
-                    .create().show();
-        }
-        else
-        {
-            ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.RECORD_AUDIO}, AUDIO_PERMISSON_CODE);
-        }
+
+    private void doBindService() {
+        Intent playerServiceIntent = new Intent(this,PlayerService.class);
+        bindService(playerServiceIntent,playerServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == STORAGE_PERMISSON_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
-                fetchSongs();
-                songAdapter.notifyDataSetChanged();
-            } else {
-                Toast.makeText(this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
-            }
+    ServiceConnection playerServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            PlayerService.ServiceBinder binder = (PlayerService.ServiceBinder) iBinder;
+            player = binder.getPlayerService().player;
+            isBound = true;
+
+            storagePermissionLauncher.launch(permission);
+            playerControls();
         }
-        else if (requestCode == AUDIO_PERMISSON_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Audio Permission Granted", Toast.LENGTH_SHORT).show();
-                activateAudioVisualizer();
-            } else {
-                Toast.makeText(this, "Audio Permission Denied", Toast.LENGTH_SHORT).show();
-            }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+
         }
-    }
+    };
 
     private void fetchSongs() {
         Uri mediaStoreUri;
+        List<Song> songs = new ArrayList<>();
+
 
         if(Build.VERSION.SDK_INT >=Build.VERSION_CODES.Q)
         {
@@ -233,7 +203,7 @@ public class MainListActivity extends AppCompatActivity {
 
         try
         {
-            Cursor cursor = getContentResolver().query(mediaStoreUri, projection,MediaStore.Audio.Media.IS_MUSIC + " != 0", null,null);
+            Cursor cursor = getContentResolver().query(mediaStoreUri, projection,null, null,null);
 
             int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
             int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
@@ -256,19 +226,34 @@ public class MainListActivity extends AppCompatActivity {
                 Song song = new Song(name,uri,albumCoverUri,artist,duration);
 
                 songs.add(song);
-
-                songs.sort(new Comparator<Song>() {
-                    public int compare(Song o1, Song o2) {
-                        return o1.getTitle().compareTo(o2.getTitle());
-                    }
-                });
             }
+
+            songs.sort(Comparator.comparing(Song::getTitle));
+            showSongs(songs);
             cursor.close();
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
+    }
+
+    private void showSongs(List<Song> songs) {
+        if(songs.size() == 0)
+        {
+            Toast.makeText(this, "No Songs", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        allSongs.clear();
+        allSongs.addAll(songs);
+
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(layoutManager);
+
+        songAdapter = new SongAdapter(this, allSongs,player,playerView);
+        recyclerView.setAdapter(songAdapter);
+
+
     }
 
     @Override
@@ -314,10 +299,8 @@ public class MainListActivity extends AppCompatActivity {
 
                 updatePlayerPositionProgress();
 
-                if(ContextCompat.checkSelfPermission(MainListActivity.this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-                {
-                    activateAudioVisualizer();
-                }
+
+                activateAudioVisualizer();
 
                 if(!player.isPlaying())
                 {
@@ -345,11 +328,7 @@ public class MainListActivity extends AppCompatActivity {
 
                     updatePlayerPositionProgress();
 
-                    if(ContextCompat.checkSelfPermission(MainListActivity.this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-                    {
-                        activateAudioVisualizer();
-                    }
-
+                    activateAudioVisualizer();
                 }
                 else
                 {
@@ -441,6 +420,10 @@ public class MainListActivity extends AppCompatActivity {
         {
             player.seekToPrevious();
         }
+        else
+        {
+            player.seekTo(allSongs.size());
+        }
     }
 
     private void skipToNextSong()
@@ -449,22 +432,23 @@ public class MainListActivity extends AppCompatActivity {
         {
             player.seekToNext();
         }
+        else
+        {
+            player.seekTo(0);
+        }
     }
 
     private void updatePlayerPositionProgress()
     {
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
+        new Handler().postDelayed(() -> {
 
-                if(player.isPlaying())
-                {
-                    progressView.setText(getReadableTime((int) player.getCurrentPosition()));
-                    seekbar.setProgress((int) player.getCurrentPosition());
-                }
-
-                updatePlayerPositionProgress();
+            if(player.isPlaying())
+            {
+                progressView.setText(getReadableTime((int) player.getCurrentPosition()));
+                seekbar.setProgress((int) player.getCurrentPosition());
             }
+
+            updatePlayerPositionProgress();
         },1000);
     }
 
@@ -514,6 +498,9 @@ public class MainListActivity extends AppCompatActivity {
 
     private void activateAudioVisualizer()
     {
+        if(ContextCompat.checkSelfPermission(this,recordAudioPermission) != PackageManager.PERMISSION_GRANTED){
+            return;
+        }
         audioVisualizer.setColor(ContextCompat.getColor(this,R.color.turquoise));
         audioVisualizer.setDensity(10);
         audioVisualizer.setPlayer(player.getAudioSessionId());
@@ -522,11 +509,12 @@ public class MainListActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(player.isPlaying())
+        if(isBound)
         {
-            player.stop();
+            isBound = false;
+            unbindService(playerServiceConnection);
         }
-        player.release();
     }
+
 
 }

@@ -1,8 +1,11 @@
 package com.example.audioplayer;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +14,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 
@@ -69,7 +73,10 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }*/
 
         viewHolder.itemView.setOnClickListener(view ->{
+            context.startService(new Intent(context.getApplicationContext(), PlayerService.class));
+
             playerView.setVisibility(View.VISIBLE);
+
             if(!player.isPlaying())
             {
                 player.setMediaItems(getMediaItems(),position,0);
@@ -81,6 +88,12 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
             player.prepare();
             player.play();
+
+
+            if(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+            {
+                ((MainListActivity)context).recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
+            }
         });
 
     }

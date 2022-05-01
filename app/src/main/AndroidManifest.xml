@@ -2,9 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.audioplayer">
 
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:allowBackup="true"
@@ -13,12 +13,18 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.AudioPlayer">
+        <service
+            android:name=".PlayerService"
+            android:enabled="true"
+            android:exported="false"></service>
+
         <activity
             android:name=".SignUpActivity"
             android:exported="false" />
         <activity
             android:name=".MainListActivity"
-            android:exported="false" />
+            android:exported="true"
+            android:launchMode="singleTop" />
         <activity
             android:name=".LoginActivity"
             android:exported="true">
