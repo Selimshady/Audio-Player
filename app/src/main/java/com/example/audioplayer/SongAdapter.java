@@ -3,13 +3,11 @@ package com.example.audioplayer;
 import android.annotation.SuppressLint;
 import android.content.Context;
 
-import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -58,7 +56,7 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         viewHolder.durationHolder.setText(getDuration(song.getDuration()));
         viewHolder.artistHolder.setText(song.getArtist());
 
-        Uri songCover = song.getCoverUri();
+        /*Uri songCover = song.getCoverUri();
 
         if(songCover != null)
         {
@@ -68,9 +66,10 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             {
                 viewHolder.symbolHolder.setImageResource(R.drawable.ic_baseline_headset_24);
             }
-        }
+        }*/
 
         viewHolder.itemView.setOnClickListener(view ->{
+            playerView.setVisibility(View.VISIBLE);
             if(!player.isPlaying())
             {
                 player.setMediaItems(getMediaItems(),position,0);
@@ -82,10 +81,6 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
             player.prepare();
             player.play();
-            Toast.makeText(context, song.getTitle(), Toast.LENGTH_SHORT).show();
-
-
-            playerView.setVisibility(View.VISIBLE);
         });
 
     }
@@ -138,21 +133,22 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 
 
+    @SuppressLint("DefaultLocale")
     private String getDuration(int totalDuration)
     {
         String totalDurationText;
 
         int hrs = totalDuration/(1000*60*60);
         int min = (totalDuration%(1000*60*60))/(1000*60);
-        int secs = (((totalDuration%(1000*60*60))%(1000*60*60))%(1000*600))/10000;
+        int secs = (((totalDuration%(1000*60*60))%(1000*60*60))%(1000*60))/1000;
 
         if(hrs<1)
         {
-            totalDurationText = String.format("%2d:%2d",min,secs);
+            totalDurationText = String.format("%02d:%02d",min,secs);
         }
         else
         {
-            totalDurationText = String.format("%1d:%2d:%2d", hrs,min,secs);
+            totalDurationText = String.format("%01d:%02d:%02d", hrs,min,secs);
         }
 
         return totalDurationText;

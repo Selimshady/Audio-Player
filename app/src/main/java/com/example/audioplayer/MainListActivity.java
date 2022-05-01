@@ -5,6 +5,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -12,14 +13,18 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.ContentUris;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.os.Handler;
 import android.provider.MediaStore;
+
 
 import android.view.View;
 import android.widget.ImageView;
@@ -35,6 +40,7 @@ import com.google.android.exoplayer2.Player;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 
 public class MainListActivity extends AppCompatActivity {
@@ -60,46 +66,19 @@ public class MainListActivity extends AppCompatActivity {
     int defaultStatusColor;
     int repeatMode = 1; // repeat all  = 1 , repeat one = 2 , shuffle = 3
 
+    private final int STORAGE_PERMISSON_CODE = 1;
+    private final int AUDIO_PERMISSON_CODE = 2;
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_list);
+
         songs = new ArrayList<>();
         recyclerView = (RecyclerView) findViewById(R.id.songList);
         player = new ExoPlayer.Builder(this).build();
 
-
-
         defaultStatusColor = getWindow().getStatusBarColor();
-
         getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor,199));
-
-
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
-        {
-            fetchSongs();
-        }
-        else
-        {
-            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 11);
-        }
-
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
-        {
-            if(player.isPlaying()) {
-                activateAudioVisualizer();
-            }
-        }
-        else
-        {
-            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 12);
-        }
-
-
-        songs.sort(new Comparator<Song>() {
-            public int compare(Song o1, Song o2) {
-                return o1.getTitle().compareTo(o2.getTitle());
-            }
-        });
 
         playerView = findViewById(R.id.player_view);
         playerCloseBtn = findViewById(R.id.playerCloseBtn);
@@ -124,7 +103,7 @@ public class MainListActivity extends AppCompatActivity {
         artworkView = findViewById(R.id.artworkView);
         seekbar = findViewById(R.id.seekBar);
         progressView = findViewById(R.id.progressView);
-        durationView = findViewById(R.id.duration);
+        durationView = findViewById(R.id.durationView);
         audioVisualizer = findViewById(R.id.visualizer);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -133,102 +112,103 @@ public class MainListActivity extends AppCompatActivity {
         songAdapter = new SongAdapter(this,songs,player,playerView);
         recyclerView.setAdapter(songAdapter);
 
-
         playerControls();
-    }
-
-    private void playerControls()
-    {
-        songNameView.setSelected(true);
-        homeSongNameView.setSelected(true);
 
 
-        //exit the player view
-        playerCloseBtn.setOnClickListener(view -> exitPlayerView());
-        playListBtn.setOnClickListener(view -> exitPlayerView());
-        //open player view on  home control wrapper click
-        homeControlWrapper.setOnClickListener(view -> showPlayerView());
-
-
-        player.addListener(new Player.Listener() {
-            @Override
-            public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
-                Player.Listener.super.onMediaItemTransition(mediaItem, reason);
-
-                assert mediaItem != null;
-                songNameView.setText(mediaItem.mediaMetadata.title);
-                homeSongNameView.setText(mediaItem.mediaMetadata.title);
-
-                progressView.setText(getReadableTime((int) player.getCurrentPosition()));
-                seekbar.setProgress((int) player.getCurrentPosition());
-                seekbar.setMax((int) player.getDuration());
-                durationView.setText(getReadableTime((int) player.getDuration()));
-                playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause_circle,0,0,0);
-                homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause_circle,0,0,0);
-
-            }
-
-            @Override
-            public void onPlaybackStateChanged(int playbackState) {
-                Player.Listener.super.onPlaybackStateChanged(playbackState);
-            }
-        });
-
-
-    }
-
-    @SuppressLint("DefaultLocale")
-    private String getReadableTime(int currentPosition) {
-        String currentPositionText;
-
-        int hrs = currentPosition/(1000*60*60);
-        int min = (currentPosition%(1000*60*60))/(1000*60);
-        int secs = (((currentPosition%(1000*60*60))%(1000*60*60))%(1000*600))/10000;
-
-        if(hrs<1)
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
         {
-            currentPositionText = String.format("%2d:%2d",min,secs);
+            fetchSongs();
         }
         else
         {
-            currentPositionText = String.format("%1d:%2d:%2d", hrs,min,secs);
+            requestStoragePermission();
         }
 
-        return currentPositionText;
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+        {
+            activateAudioVisualizer();
+        }
+        else
+        {
+            requestAudioPermission();
+        }
     }
 
-    private void showPlayerView()
+
+    private void requestStoragePermission()
     {
-        playerView.setVisibility(View.VISIBLE);
-        updatePlayerColors();
+        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.READ_EXTERNAL_STORAGE))
+        {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permission Needed")
+                    .setMessage("Store permission is needed to reach your songs and show them in this app")
+                    .setPositiveButton("ok", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            ActivityCompat.requestPermissions(MainListActivity.this,new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSON_CODE);
+                        }
+                    })
+                    .setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            dialogInterface.dismiss();
+                        }
+                    })
+                    .create().show();
+        }
+        else
+        {
+            ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSON_CODE);
+        }
     }
 
-    private void updatePlayerColors()
+    private void requestAudioPermission()
     {
-
-    }
-
-    private void exitPlayerView()
-    {
-        playerView.setVisibility(View.GONE);
-        getWindow().setStatusBarColor(defaultStatusColor);
-        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor, 199));
-
-    }
-
-    private void activateAudioVisualizer()
-    {
-
+        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.RECORD_AUDIO))
+        {
+            new AlertDialog.Builder(this)
+                    .setTitle("Permission Needed")
+                    .setMessage("Audio Record permission is needed to show audio visualizer")
+                    .setPositiveButton("ok", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            ActivityCompat.requestPermissions(MainListActivity.this,new String[] {Manifest.permission.RECORD_AUDIO}, AUDIO_PERMISSON_CODE);
+                        }
+                    })
+                    .setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            dialogInterface.dismiss();
+                        }
+                    })
+                    .create().show();
+        }
+        else
+        {
+            ActivityCompat.requestPermissions(this,new String[] {Manifest.permission.RECORD_AUDIO}, AUDIO_PERMISSON_CODE);
+        }
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if(player.isPlaying())
-        {
-            player.stop();
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == STORAGE_PERMISSON_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
+                fetchSongs();
+                songAdapter.notifyDataSetChanged();
+            } else {
+                Toast.makeText(this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
+            }
         }
-        player.release();
+        else if (requestCode == AUDIO_PERMISSON_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Audio Permission Granted", Toast.LENGTH_SHORT).show();
+                activateAudioVisualizer();
+            } else {
+                Toast.makeText(this, "Audio Permission Denied", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void fetchSongs() {
@@ -276,6 +256,12 @@ public class MainListActivity extends AppCompatActivity {
                 Song song = new Song(name,uri,albumCoverUri,artist,duration);
 
                 songs.add(song);
+
+                songs.sort(new Comparator<Song>() {
+                    public int compare(Song o1, Song o2) {
+                        return o1.getTitle().compareTo(o2.getTitle());
+                    }
+                });
             }
             cursor.close();
         }
@@ -286,16 +272,261 @@ public class MainListActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onBackPressed() {
+        if(playerView.getVisibility() == View.VISIBLE)
+        {
+            exitPlayerView();
+        }
+        else
+            super.onBackPressed();
+    }
 
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            if(requestCode == 11)
-                fetchSongs();
-            else if(requestCode == 12)
-                activateAudioVisualizer();
-        } else {
-            Toast.makeText(this, "error", Toast.LENGTH_SHORT).show();
+    private void playerControls()
+    {
+        songNameView.setSelected(true);
+        homeSongNameView.setSelected(true);
+
+
+        //exit the player view
+        playerCloseBtn.setOnClickListener(view -> exitPlayerView());
+        playListBtn.setOnClickListener(view -> exitPlayerView());
+        //open player view on  home control wrapper click
+        homeControlWrapper.setOnClickListener(view -> showPlayerView());
+
+
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
+                Player.Listener.super.onMediaItemTransition(mediaItem, reason);
+
+                assert mediaItem != null;
+                songNameView.setText(mediaItem.mediaMetadata.title);
+                homeSongNameView.setText(mediaItem.mediaMetadata.title);
+
+                progressView.setText(getReadableTime((int) player.getCurrentPosition()));
+                seekbar.setProgress((int) player.getCurrentPosition());
+                seekbar.setMax((int) player.getDuration());
+                durationView.setText(getReadableTime((int) player.getDuration()));
+                playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause_circle,0,0,0);
+                homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause,0,0,0);
+
+                showCurrentArtwork();
+
+                updatePlayerPositionProgress();
+
+                if(ContextCompat.checkSelfPermission(MainListActivity.this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                {
+                    activateAudioVisualizer();
+                }
+
+                if(!player.isPlaying())
+                {
+                    player.play();
+                }
+
+            }
+
+            @Override
+            public void onPlaybackStateChanged(int playbackState) {
+                Player.Listener.super.onPlaybackStateChanged(playbackState);
+                if(playbackState == ExoPlayer.STATE_READY)
+                {
+                    songNameView.setText(Objects.requireNonNull(player.getCurrentMediaItem()).mediaMetadata.title);
+                    homeSongNameView.setText(player.getCurrentMediaItem().mediaMetadata.title);
+                    progressView.setText(getReadableTime((int) player.getCurrentPosition()));
+                    durationView.setText(getReadableTime((int) player.getDuration()));
+                    seekbar.setMax((int) player.getDuration());
+                    seekbar.setProgress((int) player.getCurrentPosition());
+                    playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause_circle,0,0,0);
+                    homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause,0,0,0);
+
+
+                    showCurrentArtwork();
+
+                    updatePlayerPositionProgress();
+
+                    if(ContextCompat.checkSelfPermission(MainListActivity.this,Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+                    {
+                        activateAudioVisualizer();
+                    }
+
+                }
+                else
+                {
+                    playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_play_circle,0,0,0);
+                    homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_play,0,0,0);
+                }
+            }
+        });
+
+        skipNextBtn.setOnClickListener(view -> skipToNextSong());
+        homeSkipNextBtn.setOnClickListener(view -> skipToNextSong());
+
+        skipPreviousBtn.setOnClickListener(view -> skipToPreviousSong());
+        homeSkipPreviousBtn.setOnClickListener(view -> skipToPreviousSong());
+
+        playPauseBtn.setOnClickListener(view -> playOrPausePlayer());
+        homePlayPauseBtn.setOnClickListener(view -> playOrPausePlayer());
+
+
+        seekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            int progressValue = 0;
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                progressValue = seekbar.getProgress();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                if(player.getPlaybackState() == ExoPlayer.STATE_READY)
+                {
+                    seekbar.setProgress(progressValue);
+                    progressView.setText(getReadableTime(progressValue));
+                    player.seekTo(progressValue);
+                }
+            }
+        });
+
+        repeatModeBtn.setOnClickListener(view -> {
+            if(repeatMode == 1)
+            {
+                player.setRepeatMode(ExoPlayer.REPEAT_MODE_ONE);
+                repeatMode = 2;
+                repeatModeBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_repeat_one,0,0,0);
+            }
+            else if(repeatMode == 2)
+            {
+                player.setShuffleModeEnabled(true);
+                player.setRepeatMode(ExoPlayer.REPEAT_MODE_ALL);
+                repeatMode = 3;
+                repeatModeBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_shuffle,0,0,0);
+            }
+            else
+            {
+                player.setRepeatMode(ExoPlayer.REPEAT_MODE_ALL);
+                player.setShuffleModeEnabled(false);
+                repeatMode = 1;
+                repeatModeBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_repeat,0,0,0);
+            }
+        });
+
+
+    }
+
+    private void playOrPausePlayer()
+    {
+        if(player.isPlaying())
+        {
+            player.pause();
+            playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_play_circle,0,0,0);
+            homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_play,0,0,0);
+        }
+        else
+        {
+            player.play();
+            playPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause_circle,0,0,0);
+            homePlayPauseBtn.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_pause,0,0,0);
+        }
+
+    }
+
+    private void skipToPreviousSong()
+    {
+        if(player.hasPreviousMediaItem())
+        {
+            player.seekToPrevious();
         }
     }
+
+    private void skipToNextSong()
+    {
+        if(player.hasNextMediaItem())
+        {
+            player.seekToNext();
+        }
+    }
+
+    private void updatePlayerPositionProgress()
+    {
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+                if(player.isPlaying())
+                {
+                    progressView.setText(getReadableTime((int) player.getCurrentPosition()));
+                    seekbar.setProgress((int) player.getCurrentPosition());
+                }
+
+                updatePlayerPositionProgress();
+            }
+        },1000);
+    }
+
+    private void showCurrentArtwork()
+    {
+        artworkView.setImageURI(Objects.requireNonNull(player.getCurrentMediaItem()).mediaMetadata.artworkUri);
+
+        if(artworkView.getDrawable() == null)
+        {
+            artworkView.setImageResource(R.drawable.ic_baseline_headset_24);
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private String getReadableTime(int totalDuration) {
+        String totalDurationText;
+
+        int hrs = totalDuration/(1000*60*60);
+        int min = (totalDuration%(1000*60*60))/(1000*60);
+        int secs = (((totalDuration%(1000*60*60))%(1000*60*60))%(1000*60))/1000;
+
+        if(hrs<1)
+        {
+            totalDurationText = String.format("%02d:%02d",min,secs);
+        }
+        else
+        {
+            totalDurationText = String.format("%01d:%02d:%02d", hrs,min,secs);
+        }
+
+        return totalDurationText;
+    }
+
+    private void showPlayerView()
+    {
+        playerView.setVisibility(View.VISIBLE);
+    }
+
+
+    private void exitPlayerView()
+    {
+        playerView.setVisibility(View.GONE);
+        getWindow().setStatusBarColor(defaultStatusColor);
+        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor, 199));
+
+    }
+
+    private void activateAudioVisualizer()
+    {
+        audioVisualizer.setColor(ContextCompat.getColor(this,R.color.turquoise));
+        audioVisualizer.setDensity(10);
+        audioVisualizer.setPlayer(player.getAudioSessionId());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(player.isPlaying())
+        {
+            player.stop();
+        }
+        player.release();
+    }
+
 }

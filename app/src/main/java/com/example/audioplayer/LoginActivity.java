@@ -1,6 +1,7 @@
 package com.example.audioplayer;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.ColorUtils;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
@@ -39,6 +40,11 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        int defaultStatusColor = getWindow().getStatusBarColor();
+
+        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor,199));
+        
         attemptCountRemaining = 3;
 
         userName = (EditText) findViewById(R.id.username);
@@ -59,11 +65,13 @@ public class LoginActivity extends AppCompatActivity {
             else
             {
                 attemptCountRemaining--;
-                attemptCount.setText("Remaining attempt: " + attemptCountRemaining);
                 Toast.makeText(LoginActivity.this, "Incorrect", Toast.LENGTH_SHORT).show();
+                attemptCount.setText("Remaining attempt count: " + attemptCountRemaining);
             }
             if (attemptCountRemaining == 0)
             {
+                attemptCountRemaining = 3;
+                attemptCount.setText("Remaining attempt count: " + attemptCountRemaining);
                 startActivity(new Intent(view.getContext(), SignUpActivity.class));
             }
         });
@@ -71,8 +79,15 @@ public class LoginActivity extends AppCompatActivity {
         b_signup.setOnClickListener(view -> startActivity(new Intent(view.getContext(), SignUpActivity.class)));
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        attemptCountRemaining=3;
+    }
+
     public boolean control(String username, String password) {
-        boolean flag = false;
+        boolean flag;
+        flag = false;
         File fileJson = new File(this.getFilesDir(),filename);
         if(fileJson.exists()) {
             try {

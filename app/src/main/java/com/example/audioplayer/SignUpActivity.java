@@ -1,6 +1,7 @@
 package com.example.audioplayer;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.ColorUtils;
 
 import android.os.Bundle;
 import android.widget.Button;
@@ -39,6 +40,10 @@ public class SignUpActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_up);
 
+        int defaultStatusColor = getWindow().getStatusBarColor();
+
+        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor,199));
+
         username = (EditText) findViewById(R.id.username);
         password = (EditText) findViewById(R.id.password);
         passwordAgain = (EditText) findViewById(R.id.passwordAgain);
@@ -49,12 +54,22 @@ public class SignUpActivity extends AppCompatActivity {
         b_send= (Button) findViewById(R.id.send);
 
         b_send.setOnClickListener(view -> {
-            if(password.getText().toString().equals(passwordAgain.getText().toString()))
+            if(username.getText().toString().equals("") || password.getText().toString().equals("") ||
+                firstname.getText().toString().equals("") || lastname.getText().toString().equals(""))
+            {
+                Toast.makeText(this, "Please do not leave spaces empty", Toast.LENGTH_SHORT).show();
+            }
+            else if(phone.getText().toString().length() != 11)
+                Toast.makeText(this, "Please add 0 to start of your number and it should have 11 number", Toast.LENGTH_SHORT).show();
+            else if(!emailControl(email)){
+            }
+            else if(password.getText().toString().equals(passwordAgain.getText().toString()))
             {
                 if(control(new User(username.getText().toString(),password.getText().toString(),firstname.getText().toString(),
                         lastname.getText().toString(),email.getText().toString(),phone.getText().toString())))
                 {
                     Toast.makeText(SignUpActivity.this, "Mail is sent to your email.", Toast.LENGTH_SHORT).show();
+                    finish();
                 }
                 else
                 {
@@ -66,6 +81,24 @@ public class SignUpActivity extends AppCompatActivity {
                 Toast.makeText(SignUpActivity.this, "Passwords unmatched", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private boolean emailControl(EditText email)
+    {
+        String EmailText = email.getText().toString().trim();
+        String emailPattern = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+";
+
+        // onClick of button perform this simplest code.
+        if (EmailText.matches(emailPattern))
+        {
+            Toast.makeText(getApplicationContext(),"valid email address",Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        else
+        {
+            Toast.makeText(getApplicationContext(),"Invalid email address", Toast.LENGTH_SHORT).show();
+            return false;
+        }
     }
 
     private boolean control(User user)
