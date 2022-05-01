@@ -3,6 +3,7 @@ package com.example.audioplayer;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.ColorUtils;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -69,6 +70,7 @@ public class SignUpActivity extends AppCompatActivity {
                         lastname.getText().toString(),email.getText().toString(),phone.getText().toString())))
                 {
                     Toast.makeText(SignUpActivity.this, "Mail is sent to your email.", Toast.LENGTH_SHORT).show();
+                    sendEmail();
                     finish();
                 }
                 else
@@ -81,6 +83,19 @@ public class SignUpActivity extends AppCompatActivity {
                 Toast.makeText(SignUpActivity.this, "Passwords unmatched", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void sendEmail() {
+        Intent emailIntent = new Intent(Intent.ACTION_SEND);
+        emailIntent.putExtra(Intent.EXTRA_EMAIL, new String[]{ email.getText().toString()});
+        emailIntent.putExtra(Intent.EXTRA_SUBJECT, "Welcome Audio Player");
+        emailIntent.putExtra(Intent.EXTRA_TEXT, "We are happy to see you " + firstname.getText().toString() + " " +
+                lastname.getText().toString() + ".\n Username: " + username.getText().toString() + "\nPhone Number:" +
+                phone.getText().toString() + "\nWe hope you have have a great time using our app.");
+        //need this to prompts email client only
+        emailIntent.setType("message/rfc822");
+
+        startActivity(Intent.createChooser(emailIntent, "Choose an Email client :"));
     }
 
     private boolean emailControl(EditText email)

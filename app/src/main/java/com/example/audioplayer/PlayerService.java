@@ -43,6 +43,12 @@ public class PlayerService extends Service {
     }
 
     @Override
+    public boolean onUnbind(Intent intent) {
+        onDestroy();
+        return super.onUnbind(intent);
+    }
+
+    @Override
     public void onCreate() {
         super.onCreate();
 
@@ -79,8 +85,7 @@ public class PlayerService extends Service {
 
     @Override
     public void onDestroy() {
-        if(player.isPlaying())
-            player.stop();
+        if(player.isPlaying()) player.stop();
         notificationManager.setPlayer(null);
         player.release();
         player = null;
@@ -88,9 +93,6 @@ public class PlayerService extends Service {
         stopSelf();
         super.onDestroy();
     }
-
-
-
 
     PlayerNotificationManager.NotificationListener notificationListener = new PlayerNotificationManager.NotificationListener() {
         @Override

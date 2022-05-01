@@ -4,7 +4,6 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -73,7 +72,6 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }*/
 
         viewHolder.itemView.setOnClickListener(view ->{
-            context.startService(new Intent(context.getApplicationContext(), PlayerService.class));
 
             playerView.setVisibility(View.VISIBLE);
 

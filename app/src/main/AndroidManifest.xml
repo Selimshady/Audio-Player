@@ -16,8 +16,7 @@
         <service
             android:name=".PlayerService"
             android:enabled="true"
-            android:exported="false"></service>
-
+            android:exported="false"/>
         <activity
             android:name=".SignUpActivity"
             android:exported="false" />

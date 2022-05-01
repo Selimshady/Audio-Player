@@ -30,6 +30,7 @@ import android.os.IBinder;
 import android.provider.MediaStore;
 
 
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -159,6 +160,7 @@ public class MainListActivity extends AppCompatActivity {
 
     private void doBindService() {
         Intent playerServiceIntent = new Intent(this,PlayerService.class);
+        startService(new Intent(this, PlayerService.class));
         bindService(playerServiceIntent,playerServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -507,14 +509,18 @@ public class MainListActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
-        if(isBound)
-        {
-            isBound = false;
-            unbindService(playerServiceConnection);
-        }
+        doUnbindService();
     }
 
+
+    private void doUnbindService() {
+        if(isBound)
+        {
+            unbindService(playerServiceConnection);
+            isBound = false;
+        }
+    }
 
 }
