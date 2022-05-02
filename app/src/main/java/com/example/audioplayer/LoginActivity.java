@@ -65,9 +65,10 @@ public class LoginActivity extends AppCompatActivity {
             else
             {
                 attemptCountRemaining--;
-                Toast.makeText(LoginActivity.this, "Incorrect", Toast.LENGTH_SHORT).show();
                 attemptCount.setText("Remaining attempt count: " + attemptCountRemaining);
+                Toast.makeText(LoginActivity.this, "Incorrect", Toast.LENGTH_SHORT).show();
             }
+
             if (attemptCountRemaining == 0)
             {
                 attemptCountRemaining = 3;

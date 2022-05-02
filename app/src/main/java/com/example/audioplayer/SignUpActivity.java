@@ -69,7 +69,6 @@ public class SignUpActivity extends AppCompatActivity {
                 if(control(new User(username.getText().toString(),password.getText().toString(),firstname.getText().toString(),
                         lastname.getText().toString(),email.getText().toString(),phone.getText().toString())))
                 {
-                    Toast.makeText(SignUpActivity.this, "Mail is sent to your email.", Toast.LENGTH_SHORT).show();
                     sendEmail();
                     finish();
                 }
@@ -106,7 +105,6 @@ public class SignUpActivity extends AppCompatActivity {
         // onClick of button perform this simplest code.
         if (EmailText.matches(emailPattern))
         {
-            Toast.makeText(getApplicationContext(),"valid email address",Toast.LENGTH_SHORT).show();
             return true;
         }
         else

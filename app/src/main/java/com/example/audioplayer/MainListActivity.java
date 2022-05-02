@@ -29,8 +29,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.provider.MediaStore;
 
-
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -503,6 +501,7 @@ public class MainListActivity extends AppCompatActivity {
         if(ContextCompat.checkSelfPermission(this,recordAudioPermission) != PackageManager.PERMISSION_GRANTED){
             return;
         }
+        homeControlWrapper.setVisibility(View.VISIBLE);
         audioVisualizer.setColor(ContextCompat.getColor(this,R.color.turquoise));
         audioVisualizer.setDensity(10);
         audioVisualizer.setPlayer(player.getAudioSessionId());
@@ -522,5 +521,6 @@ public class MainListActivity extends AppCompatActivity {
             isBound = false;
         }
     }
+
 
 }

@@ -72,7 +72,6 @@ public class SongAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }*/
 
         viewHolder.itemView.setOnClickListener(view ->{
-
             playerView.setVisibility(View.VISIBLE);
 
             if(!player.isPlaying())
