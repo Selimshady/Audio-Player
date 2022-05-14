@@ -81,22 +81,21 @@ public class MainListActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main_list);
 
         defaultStatusColor = getWindow().getStatusBarColor();
-        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor,199));
+        getWindow().setNavigationBarColor(ColorUtils.setAlphaComponent(defaultStatusColor, 199));
 
         recyclerView = (RecyclerView) findViewById(R.id.songList);
 
-        storagePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted->{
-            if(granted)
+        storagePermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+            if (granted)
                 fetchSongs();
             else
                 userResponse();
         });
 
-        recordAudioPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted->{
-            if(granted && player.isPlaying()) {
+        recordAudioPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+            if (granted && player.isPlaying()) {
                 activateAudioVisualizer();
-            }
-            else
+            } else
                 userResponsesOnRecordAudioPerm();
         });
 

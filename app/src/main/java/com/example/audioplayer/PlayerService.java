@@ -5,7 +5,10 @@ import static androidx.core.app.NotificationManagerCompat.IMPORTANCE_HIGH;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Binder;
@@ -31,19 +34,28 @@ public class PlayerService extends Service {
     PlayerNotificationManager notificationManager;
 
 
+    BroadcastReceiver volumeController;
+
+
     public class ServiceBinder extends Binder {
         public PlayerService getPlayerService() {
             return PlayerService.this;
         }
     }
 
+
+
     @Override
-    public IBinder onBind(Intent intent) {
+    public IBinder onBind(Intent intent)
+    {
+        IntentFilter filter = new IntentFilter("com.example.audiocontroller");
+        registerReceiver(volumeController, filter);
         return serviceBinder;
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
+        unregisterReceiver(volumeController);
         onDestroy();
         return super.onUnbind(intent);
     }
@@ -80,11 +92,33 @@ public class PlayerService extends Service {
         notificationManager.setPriority(NotificationCompat.PRIORITY_LOW);
         notificationManager.setUseRewindAction(false);
         notificationManager.setUseFastForwardAction(false);
+
+        volumeController = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                String extra = intent.getStringExtra("Type");
+                if(action.equals("com.example.audiocontroller"))
+                {
+                    if(extra.equals("MovingInPocket"))
+                    {
+                        player.setVolume(1f);
+                        player.setDeviceMuted(false);
+                    }
+                    else if(extra.equals("NotMovingOnTable"))
+                    {
+                        player.setVolume(0f);
+                        player.setDeviceMuted(true);
+                    }
+                }
+            }
+        };
     }
 
 
     @Override
     public void onDestroy() {
+        player.setDeviceMuted(false);
         if(player.isPlaying()) player.stop();
         notificationManager.setPlayer(null);
         player.release();
